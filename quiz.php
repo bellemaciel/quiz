@@ -56,18 +56,60 @@ $stmt_respostas->execute([':id' => $pergunta_id_atual]);
     <h1><?php echo htmlspecialchars($pergunta['texto_pergunta']); ?> </h1>
     
     <form action="processar_resposta.php" method="POST">
-        <?php
-        
-        while($resposta = $stmt_respostas->fetch(PDO::FETCH_ASSOC)) {
-            echo '<div>';
-            echo '<input type="radio" name="resposta_id" value="' . $resposta['id'] . '" id="resp' . $resposta['id'] . '" required>';
-            
-            echo '<label for="resp' . $resposta['id'] . '">' . htmlspecialchars($resposta['texto_resposta']) . '</label>';
-            echo '</div>';
-        }
-        ?>
+       <div class="options-container">
+    <?php while($resposta = $stmt_respostas->fetch(PDO::FETCH_ASSOC)): ?>
+        <div>
+            <input type="radio" name="resposta_id" value="<?= $resposta['id'] ?>" id="resp<?= $resposta['id'] ?>" required>
+            <label for="resp<?= $resposta['id'] ?>">
+                <div class="option-card">
+                    <?= htmlspecialchars($resposta['texto_resposta']) ?>
+                </div>
+            </label>
+        </div>
+    <?php endwhile; ?>
+</div>
+
+<div class="progress-container">
+    <?php 
+        $total = count($_SESSION['perguntas_ids']);
+        $atual = $_SESSION['pergunta_atual_index'];
+        $porcentagem = ($atual / $total) * 100;
+    ?>
+    <div class="progress-bar" style="width: <?= $porcentagem ?>%"></div>
+</div>
         <input type="hidden" name="tema_id" value="<?php echo $tema_id; ?>">
-        <button type="submit">Próxima Pergunta</button>
+        <button type="submit" class="btn btn-success">Próxima Pergunta</button>
     </form>
+    <script>
+   
+    let tempoRestante = 30; 
+    const timerElement = document.createElement('div');
+    timerElement.style.fontSize = '1.5rem';
+    timerElement.style.fontWeight = 'bold';
+    timerElement.style.color = 'var(--danger)';
+    timerElement.style.marginBottom = '10px';
+    document.querySelector('h1').after(timerElement);
+
+    const intervalo = setInterval(() => {
+        tempoRestante--;
+        timerElement.innerText = `Tempo: ${tempoRestante}s`;
+
+        if (tempoRestante <= 0) {
+            clearInterval(intervalo);
+            alert("O tempo acabou!");
+            document.querySelector('form').submit(); 
+        }
+    }, 1000);
+
+    
+    const cards = document.querySelectorAll('.option-card');
+    cards.forEach(card => {
+        card.addEventListener('click', () => {
+            
+            cards.forEach(c => c.style.boxShadow = 'none');
+            card.style.boxShadow = '0 0 10px var(--primary)';
+        });
+    });
+</script>
 </body>
 </html>

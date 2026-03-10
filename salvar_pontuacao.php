@@ -1,40 +1,29 @@
 <?php
 include 'config/connect.php';
 
-
-if (isset($_POST['nome_usuario']) && isset($_POST['pontuacao'])) {
+if (isset($_POST['nome_usuario'])) {
+    $nome = htmlspecialchars($_POST['nome_usuario']);
+    $pontos = (int)$_POST['pontuacao'];
     
-    
-    $nome = $_POST['nome_usuario'];
-    
-    $pontuacao = (int)$_POST['pontuacao'];
-    
-    try {
-       
-        $sql = "INSERT INTO ranking (nome_usuario, pontuacao) VALUES (:nome, :pontuacao)";
-        $stmt = $conn->prepare($sql);
+   
+    if (isset($_SESSION['is_desafio']) && $_SESSION['is_desafio'] == true) {
+        $sql = "INSERT INTO ranking_diario (nome_usuario, pontuacao) VALUES (:nome, :pontos)";
         
         
-        $stmt->execute([
-            ':nome' => $nome,
-            ':pontuacao' => $pontuacao
-        ]);
+        $tempo_ate_amanha = strtotime('tomorrow') - time();
+        setcookie('desafio_concluido', '1', time() + $tempo_ate_amanha, "/");
         
-        
-        unset($_SESSION['score']);
-        
-        
-        header('Location: ranking.php');
-        exit;
-        
-    } catch(PDOException $e) {
-        
-        echo "Erro ao salvar pontuação: " . $e->getMessage();
+        unset($_SESSION['is_desafio']);
+        $proxima_pagina = "ranking_diario.php";
+    } else {
+        $sql = "INSERT INTO ranking (nome_usuario, pontuacao) VALUES (:nome, :pontos)";
+        $proxima_pagina = "ranking.php";
     }
 
-} else {
-    
-    header('Location: index.php');
+    $stmt = $conn->prepare($sql);
+    $stmt->execute([':nome' => $nome, ':pontos' => $pontos]);
+
+    header("Location: $proxima_pagina");
     exit;
 }
 ?>

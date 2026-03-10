@@ -13,7 +13,7 @@ class Conexao {
 
         try {
           
-            $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8";
+            $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
           
             $this->pdo = new PDO($dsn, $user, $pass);
             
