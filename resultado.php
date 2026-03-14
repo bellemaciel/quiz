@@ -1,30 +1,50 @@
 <?php
 include 'config/connect.php';
 
-
-if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['score'])) {
+// 1. Verifica se há uma pontuação na sessão (indispensável para estar nesta página)
+if (!isset($_SESSION['score'])) {
     header('Location: index.php');
     exit;
 }
 
-$usuario_id = $_SESSION['usuario_id'];
-$nome_usuario = $_SESSION['usuario_nome'];
 $acertos = $_SESSION['score'];
 $total = isset($_SESSION['total_perguntas']) ? $_SESSION['total_perguntas'] : 0;
+$logado = isset($_SESSION['usuario_id']);
+$nome_exibicao = $logado ? $_SESSION['usuario_nome'] : "Jogador";
 
-
-if (!isset($_SESSION['pontuacao_salva'])) {
+// 2. Lógica para salvar automaticamente se o usuário estiver LOGADO
+if ($logado && !isset($_SESSION['pontuacao_salva'])) {
     try {
         $sql = "INSERT INTO ranking (usuario_id, nome_usuario, pontuacao) VALUES (:uid, :nome, :pontos)";
         $stmt = $conn->prepare($sql);
         $stmt->execute([
-            ':uid'   => $usuario_id,
-            ':nome'  => $nome_usuario,
+            ':uid'   => $_SESSION['usuario_id'],
+            ':nome'  => $_SESSION['usuario_nome'],
             ':pontos' => $acertos
         ]);
-        $_SESSION['pontuacao_salva'] = true; 
+        $_SESSION['pontuacao_salva'] = true;
     } catch (PDOException $e) {
-        $erro_salvamento = "Erro ao registrar pontos: " . $e->getMessage();
+        $erro_salvamento = "Erro ao salvar: " . $e->getMessage();
+    }
+}
+
+// 3. Lógica para salvar se for CONVIDADO (via formulário POST)
+if (!$logado && $_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['nome_convidado'])) {
+    $nome_convidado = htmlspecialchars(trim($_POST['nome_convidado']));
+    if (!empty($nome_convidado)) {
+        try {
+            // No banco, usuario_id fica como NULL para convidados
+            $sql = "INSERT INTO ranking (usuario_id, nome_usuario, pontuacao) VALUES (NULL, :nome, :pontos)";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([
+                ':nome'  => $nome_convidado,
+                ':pontos' => $acertos
+            ]);
+            $_SESSION['pontuacao_salva'] = true;
+            $nome_exibicao = $nome_convidado; // Atualiza o nome na tela
+        } catch (PDOException $e) {
+            $erro_salvamento = "Erro: " . $e->getMessage();
+        }
     }
 }
 ?>
@@ -46,28 +66,46 @@ if (!isset($_SESSION['pontuacao_salva'])) {
             font-size: 2.5rem; font-weight: bold;
             margin: 20px auto; border: 8px solid var(--secondary);
         }
-        .feedback-text { font-size: 1.2rem; margin-bottom: 20px; font-weight: 500; }
+        .guest-form {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            border: 1px solid #e0e0e0;
+        }
+        .input-guest {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
     </style>
 </head>
 <body>
 
     <div class="container animate-in result-card">
-        <h1>Parabéns, <?= explode(' ', $nome_usuario)[0] ?>! 🥳</h1>
+        <h1>Parabéns, <?= explode(' ', $nome_exibicao)[0] ?>! 🥳</h1>
         <p>Você concluiu o desafio. Confira seu desempenho:</p>
 
         <div class="score-circle">
             <?= $acertos ?>
         </div>
-        
-        <div class="feedback-text">
-            <?php 
-            if($acertos == $total) echo "IMPRESSIONANTE! Gabaritou!";
-            elseif($acertos >= $total/2) echo " Muito bem! Você conhece o assunto.";
-            else echo "Bom esforço! Que tal estudar mais um pouco?";
-            ?>
-        </div>
 
-        <p style="color: #636e72;">Pontuação registrada no ranking geral.</p>
+        <?php if (isset($_SESSION['pontuacao_salva'])): ?>
+            <p style="color: #2ecc71; font-weight: bold;">✅ Pontuação registrada no ranking!</p>
+        <?php endif; ?>
+
+        <?php if (!$logado && !isset($_SESSION['pontuacao_salva'])): ?>
+            <div class="guest-form">
+                <p style="font-size: 0.9rem; margin-bottom: 10px;">Deseja salvar seu nome no ranking?</p>
+                <form method="POST">
+                    <input type="text" name="nome_convidado" class="input-guest" placeholder="Digite seu nome..." required>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">SALVAR NO RANKING</button>
+                </form>
+            </div>
+        <?php endif; ?>
 
         <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
 
@@ -78,11 +116,9 @@ if (!isset($_SESSION['pontuacao_salva'])) {
     </div>
 
     <script>
-        
         window.onload = function() {
             var duration = 4 * 1000;
             var end = Date.now() + duration;
-
             (function frame() {
                 confetti({
                     particleCount: 3,
@@ -98,7 +134,6 @@ if (!isset($_SESSION['pontuacao_salva'])) {
                     origin: { x: 1 },
                     colors: ['#6c5ce7', '#a29bfe', '#00b894']
                 });
-
                 if (Date.now() < end) {
                     requestAnimationFrame(frame);
                 }
